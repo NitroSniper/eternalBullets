@@ -1,4 +1,6 @@
+
 import pygame
+from statistics import mean
 from Player import PlayerObject
 from time import perf_counter
 from pygame.locals import (
@@ -11,7 +13,6 @@ from pygame.locals import (
     K_a
 )
 pygame.init()
-
 #
 #Window Stuff
 FPS = 60 #<show> Base Frames Per Second of the Game
@@ -25,8 +26,8 @@ SCREEN = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)) #Screen to Blit on other 
 HDMode = True #<show> whether  
 
 P1 = PlayerObject((K_w, K_s, K_d, K_a))#<show> Object of Player 1
-
-def Game(): #<show> Call Function of the game  
+def Game(): #<show> Call Function of the game
+    displayframe=[]
     PLAYERS = [P1] #<show> Holds the List of Players
     last_dt = perf_counter() #<show> last Game Loop time
     program_running = True #<show> Boolean thattells if the game is running or not
@@ -65,4 +66,7 @@ def Game(): #<show> Call Function of the game
         else: #<show> if high Definition Mode is False
             DISPLAY.blit(pygame.transform.scale(SCREEN, WINDOW_SIZE), (0, 0)) #<show> Display Screen on the Window by smooth scaling it to it's resolution 
         pygame.display.update() #<show> Update the Screen
+        displayframe.append(1/(perf_counter()-last_dt))
+    print ('')
+    print (mean(displayframe[10:]))
 Game()
