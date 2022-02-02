@@ -12,13 +12,14 @@ from pygame.locals import (
     K_d,
     K_a
 )
-pygame.init()
+pygame.display.init()
+print ('test')
 #
 #Window Stuff
-FPS = 60 #<show> Base Frames Per Second of the Game
-SCREEN_WIDTH = 600 #<show> pixel Width of the game
-SCREEN_HEIGHT = 400 #<show> pixel height of the game
-WINDOW_SIZE = (900, 600) #x, y
+FPS = 120 #<show> Base Frames Per Second of the Game
+SCREEN_WIDTH = 1920 #<show> pixel Width of the game
+SCREEN_HEIGHT = 1080 #<show> pixel height of the game
+WINDOW_SIZE = (960, 540) #x, y
 pygame.display.set_caption("Template") #<show> Sets the caption of pygame window
 #Set the Caption Window Like 'Terraria: Also Try Minecraft'
 DISPLAY = pygame.display.set_mode(WINDOW_SIZE, 0, 32) #True Screen
