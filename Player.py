@@ -1,12 +1,21 @@
+from __future__ import annotations
+from typing import Union
+
+
 import pygame
-from enginePure import ModuleDependency, regularShape
-from math import sqrt
+from time import perf_counter
+from random import randint
+from enginePure import ModuleDependency, regularShape, Overview, RAINBOW
+from Trails import TrailObject
+from math import sqrt, atan2, degrees
+
+
+
 print (ModuleDependency.allModule)
 if ModuleDependency.allModule:
     from engine import PolygonOverview, PolygonClass
 else:
-    from enginePure import PolygonOverview, PolygonClass
-
+    from enginePure import PolygonOverview, PolygonClass, ColorOverview, DynamicColor, StaticPoint, StaticColor, LinearPoint, RGBtoStaticColor
 
 
 class PlayerObject(object):
@@ -18,25 +27,81 @@ class PlayerObject(object):
             'DOWN' : False,
             'LEFT' : False,
             'RIGHT' : False
-        }
-        self.x = 200 #<show> Player x coordinate
-        self.y = 300 #<show> Player y coordinate
-        self.image = pygame.surface.Surface((30, 30)) #<show> Player image
-        self.image.fill((0,0,255))
+        } #<show> these are holding which direction the player will be moving
+        self.size = 24 #<show> player size in the game
+        self.x = 960-self.size/2 #<show> Player x coordinate
+        self.y = 540-self.size/2 #<show> Player y coordinate
         self.speed = 3 #<show> Player movement speed   
         #self.polygon = PolygonOverview((PolygonClass(((40, 40), (40, -40), (-40, -40), (-40, 40))), PolygonClass(((20, 20), (20, -20), (-20, -20), (-20, 20))),))
-        self.polygon = PolygonOverview((
-            PolygonClass(regularShape(32*sqrt(2), 4)),
-            ))
-        print (self.polygon.polygons[0].vertices)
-    def update(self, dt):
-        if self.movements['UP']: #<show> if movement 'up' is True
-            self.y -= self.speed*dt #<show> Player moves upwards
-        if self.movements['DOWN']: #<show> if movement 'down' is True
-            self.y += self.speed*dt #<show> Player moves downwards
-        if self.movements['LEFT']: #<show> if movement 'left' is True
-            self.x += self.speed*dt #<show> Player moves to the left
-        if self.movements['RIGHT']: #<show> if movement 'right' is True
-            self.x -= self.speed*dt #<show> Player moves to the right
-        self.polygon.update(dt)
+        polygon1 = {
+            'vertices': regularShape(self.size, 4),
+            'color': {
+                'r':DynamicColor(0, 2, 0, DynamicColor.sinColor),
+                'g':DynamicColor(0, 97, 247, DynamicColor.sinColor),
+                'b':DynamicColor(0, 199, 255, DynamicColor.sinColor),
+                'sprite' : True
+                },
+            'rotationSpeed': 1,
+                    } #<show> polygon info argument for 1 of the polygon
+        polygons = {
+            'polygons' : (polygon1,),
+            'rotation': 45,
+            'rotationIncrease' : 0
+        } #<show> complete polygon argument
+        self.polygon = PolygonOverview(**polygons) #<show> polygon attribute to the player
+        self.polygon.update(0)
         self.image = self.polygon.image
+        
+        self.trailSize = 8 #<show> trail size
+
+        self.trailStart: float = perf_counter() #<show> last time since trail is created
+        self.lastInvinciblity: float = perf_counter() #<show> last time since player was invincible
+    def update(self, dt: float) -> None:
+        self.moving: bool = any(self.movements.values()) #<show> is Player moving? 
+        direction: list[float] = [0, 0] #<show> holds the offset of 
+        if self.moving: #<show> if the player is moving
+            if self.movements['UP']: #<show> if movement 'up' is True
+                direction[1] -= self.speed*dt #<show> Player moves upwards
+            if self.movements['DOWN']: #<show> if movement 'down' is True
+                direction[1] += self.speed*dt #<show> Player moves downwards
+            if self.movements['LEFT']: #<show> if movement 'left' is True
+                direction[0] += self.speed*dt #<show> Player moves to the left
+            if self.movements['RIGHT']: #<show> if movement 'right' is True
+                direction[0] -= self.speed*dt #<show> Player moves to the right
+        self.x += direction[0]; self.y += direction[1] #<show> add direction onto player current position
+        direction: float = degrees(atan2(-direction[1], -direction[0])) #<show> find the angle the player is going to
+        self.polygon.update(dt, externalRotation=direction) #<show> update player polygon image
+        self.image = self.polygon.image #<show> set polygon image as image
+        if self.moving and 0.1 < perf_counter() - self.trailStart: #<show> if moving and you can spawn another trail
+            self.trailStart = perf_counter() #<show> set trail spawn last as now
+            self.trailSize = randint(4, 12)
+            currentColor = self.polygon.polygons[0].color.giveColorArgs(alpha=False) #<show> get the current color of the player
+            polygon = {
+                'vertices': regularShape(self.trailSize, 4),
+                'color': {
+                    'r': StaticColor(currentColor[0]),
+                    'g': StaticColor(currentColor[1]),
+                    'b': StaticColor(currentColor[2]),
+                    'alpha': DynamicColor(0, 0, 255, DynamicColor.modColor, reverse=True),
+                    'sprite' : True
+                    }
+                }  #<show> trail polygon argument
+            TrailObject(LinearPoint(self.x + (self.size - self.trailSize)/2, self.y + (self.size - self.trailSize)/2, direction+randint(-10, 10), 5),
+                   PolygonOverview((polygon,), self.polygon.internalRotation, randint(1, 5)), 1) #<show> creating trail
+        if 1 < perf_counter() - self.lastInvinciblity:  #<show> if player is not invincible
+            rect = self.get_rect() #<show> get player rect
+            for bullet in Overview.BULLETS: #<show> for all bullets
+                bulletRect = bullet.get_rect() #<show> get bullet rect
+                if rect.colliderect(bulletRect): #<show> if bulletRect is colliding with player rect
+                    self.lastInvinciblity = perf_counter() #<show> set last invincibility time as now
+                    #Overview.BGCOLOR.fadeFrom(ColorOverview(**RGBtoStaticColor(255, 0, 0)), duration=0.5, startingPercent=0.2, priority=1)
+                    #<show> make the background flash red
+                    break
+
+    
+    
+    def get_rect(self) -> pygame.Rect:
+        return self.image.get_rect(topleft=(self.x, self.y))  #<show> return player rect
+
+            
+#crazy frog axel
