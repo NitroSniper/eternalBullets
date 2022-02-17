@@ -15,8 +15,8 @@ class TrailObject(object):
         self.start = perf_counter()
         self.lifeTime = lifeTime
         self.update(0)
-    def update(self, dt):
-        self.polygon.update(dt)
+    def update(self, dt, externalRotation=0):
+        self.polygon.update(dt, externalRotation=externalRotation)
         self.image = self.polygon.image
         self.point.update(dt)
         # print (self.polygon.polygons[0].color.giveColorArgs())

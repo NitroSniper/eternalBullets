@@ -3,9 +3,13 @@
 
 
 from math import sin, cos, radians, sqrt, atan2, degrees, pi, ceil, acos
+from pickle import GLOBAL
 from time import perf_counter
 import pygame
 from pygame import gfxdraw
+
+from Camera import CameraObject
+
 
 
 class ModuleDependency(object):
@@ -21,14 +25,73 @@ class ModuleDependency(object):
         isNumbaHere = False
     allModule = all((isNumbaHere, isNumpyHere))
 
-class Overview(object):
-    PLAYERS = []  # <show> list that holds all Players
-    TRAILS = []  # <show> list that holds all trails
-    BULLETS = []  # <show> list that holds all Bullets
-    # <show> list that holds all Player, Trails, and Bullets
-    SPRITES = PLAYERS + TRAILS + BULLETS
-    SPRITECOLORS = []
+class Fading(object):
+    def __init__(self, parent=None):
+        self.fadeColor = None #<show> set fadeColor as color given
+        self.fadeDuration = None #<show> set fadeDuration as duration given
+        self.fadeStart = None #<show> set fade start as current time
+        self.startingPercent = None #<show> set startingPercent for ratio color as percent given
+        self.alphaMultiplier = None #<show> find out the alpha Mutliplier so it still goes the same speed
+        self.priority = None #<show> give the fading a priority which it has
+        if parent is None:
+            self.parent = (self,)
+        else:
+            self.parent = (self,) + parent
+    def fading(self, r, g, b, alpha): #<show> if fading is possible
+        col = (r, g, b, alpha)
+        for obj in self.parent:
+            if not obj.fadeDuration:  # if fadeDuration is 0 then return
+                continue #<show> return normal color
+            elapsed = perf_counter() - obj.fadeStart #<show> show the elapsed amount of time since it was created
+            if elapsed/(obj.alphaMultiplier) < obj.startingPercent: #<show> if the fading is still happening 
+                col = obj.ratioColor(col, elapsed/obj.alphaMultiplier) #<show> return the ratio between the two colors
+            else: #<show> if not fading meaning it has just finished
+                obj.fadeDuration = 0 #<show> set to 0
+                obj.priority = None #<show> it has no priority
+                continue
+        return col
+    
+    def fadeFrom(self, color, duration, startingPercent=1, priority=0): #<show> if fading from a color
+        self.fadeColor = color #<show> set fadeColor as color given
+        self.fadeDuration = duration #<show> set fadeDuration as duration given
+        self.fadeStart = perf_counter() #<show> set fade start as current time
+        self.startingPercent = startingPercent #<show> set startingPercent for ratio color as percent given
+        self.alphaMultiplier = duration/(startingPercent) #<show> find out the alpha Mutliplier so it still goes the same speed
+        self.priority = priority #<show> give the fading a priority which it has
+    
+    def ratioColor(self, color1, percent): #<show> find the ratio between 2 different colors
+        # 1 means more color 2, which is the newer color and 0 is more color 1
+        color2 = self.fadeColor.giveColorArgs() #<show> get color2 color arguments
+        return (color1[0] - (color1[0]-color2[0])*(self.startingPercent - percent),
+                color1[1] - (color1[1]-color2[1])*(self.startingPercent - percent),
+                color1[2] - (color1[2]-color2[2])*(self.startingPercent - percent), 
+                color1[3] - (color1[3]-color2[3])*(self.startingPercent - percent)) #<show> gets the ratio between the 2 different colors
 
+
+#how the level script will work. 
+#(have an object that are bullets which get a start function on it so that they can spawn.)
+#(how will I do flashes and shakes? and other game changes)
+#(time)
+#DICTIONARYS, basically have it so that it can be translated into 
+
+class OverviewObject(object):
+    def __init__(self):
+        self.PLAYERS = []  # <show> list that holds all Players
+        self.TRAILS = []  # <show> list that holds all trails
+        self.BULLETS = []  # <show> list that holds all Bullets
+        # <show> list that holds all Player, Trails, and Bullets
+        self.BULLETFADE = Fading()
+        self.GLOBALFADE = Fading()
+        self.PLAYERFADE = Fading()
+        self.TRAILFADE = Fading()
+        self.Camera = CameraObject()
+
+
+        def update(self):
+            pass
+        def clean():
+            self.__init__()
+Overview = OverviewObject()
 
 def cartesianToPolar(array):
     # output: tuple[tuple[int]] = []
@@ -124,19 +187,25 @@ class DynamicColor(object):
 
 
 class ColorOverview(object):
-    def __init__(self, r=FULL_COLOR, g=FULL_COLOR, b=FULL_COLOR, alpha=FULL_COLOR, sprite=False):
+    def __init__(self, r=FULL_COLOR, g=FULL_COLOR, b=FULL_COLOR, alpha=FULL_COLOR, bullet=False, trail=False, player=False, isGlobal=False):
         # color are given a lower and upper
         self.red = r #<show> Red Color of Color
         self.green = g #<show> Green Color of Color
         self.blue = b #<show> Blue Color of Color
         self.alpha = alpha #<show> Alpha Color of Color
         self.start = perf_counter() #<show> when Color was Created
-        self.fadeColor = None #<show> Fade Color start
-        self.fadeDuration = None #<show> Fade Color Object
-        self.fadeStart = None #<show> when FadeColor was given
-        self.priority = None #<show> the priority of FadeColor
-        if sprite: #<show> if it is linked with a sprite
-            Overview.SPRITECOLORS.append(self) #<show> add it to spriteColor list
+        if bullet: #<show> if it is linked with a bullet
+            self.fade = Fading(parent=(Overview.BULLETFADE, Overview.GLOBALFADE))
+        elif trail:
+            self.fade = Fading(parent=(Overview.TRAILFADE, Overview.GLOBALFADE))
+        elif player:
+            self.fade = Fading(parent=(Overview.PLAYERFADE, Overview.GLOBALFADE))
+        elif isGlobal:
+            self.fade = Fading(parent=(Overview.GLOBALFADE,))
+        else:
+            self.fade = Fading()
+            #Overview.BULLETCOLORS.append(self) #<show> append it to BULLETCOLORS
+
 
     def update(self, dt): #<show> if update
         pass
@@ -144,7 +213,7 @@ class ColorOverview(object):
     def giveColorArgs(self, alpha=True, fade=True): #<show> when giving color arguments
         ColorMultiplier = (perf_counter() - self.start)/1 #<show> color in terms of when it was created.
         if alpha: #<show> if alpha is wanted
-            return self.fading(self.red.returnColor(ColorMultiplier),
+            return self.fade.fading(self.red.returnColor(ColorMultiplier),
                                self.green.returnColor(ColorMultiplier),
                                self.blue.returnColor(ColorMultiplier),
                                self.alpha.returnColor(ColorMultiplier)) #<show> get color of all different color base class
@@ -152,41 +221,14 @@ class ColorOverview(object):
                 self.green.returnColor(ColorMultiplier),
                 self.blue.returnColor(ColorMultiplier)) #<show> get color of all different color base class
 
-    def fading(self, r, g, b, alpha): #<show> if fading is possible
-        if not self.fadeDuration:  # if fadeDuration is 0 then return
-            return (r, g, b, alpha) #<show> return normal color
-        elapsed = perf_counter() - self.fadeStart #<show> show the elapsed amount of time since it was created
-        if elapsed/(self.alphaMultiplier) < self.startingPercent: #<show> if the fading is still happening 
-            return self.ratioColor((r, g, b, alpha), elapsed/self.alphaMultiplier) #<show> return the ratio between the two colors
-        else: #<show> if not fading meaning it has just finished
-            self.fadeDuration = 0 #<show> set to 0
-            self.priority = None #<show> it has no priority
-            return (r, g, b, alpha) #<show> return normal color
 
     def fadeTo(self, color, duration): #<show> if fading to a Color
         pass
 
-    def fadeFrom(self, color, duration, startingPercent=1, priority=0): #<show> if fading from a color
-        if not startingPercent or bool(self.fadeDuration) and priority < self.priority:
-            return
-        self.fadeColor = color #<show> set fadeColor as color given
-        self.fadeDuration = duration #<show> set fadeDuration as duration given
-        self.fadeStart = perf_counter() #<show> set fade start as current time
-        self.startingPercent = startingPercent #<show> set startingPercent for ratio color as percent given
-        self.alphaMultiplier = duration/(startingPercent) #<show> find out the alpha Mutliplier so it still goes the same speed
-        self.priority = priority #<show> give the fading a priority which it has
-
-    def ratioColor(self, color1, percent): #<show> find the ratio between 2 different colors
-        # 1 means more color 2, which is the newer color and 0 is more color 1
-        color2 = self.fadeColor.giveColorArgs() #<show> get color2 color arguments
-        return (color1[0] - (color1[0]-color2[0])*(self.startingPercent - percent),
-                color1[1] - (color1[1]-color2[1])*(self.startingPercent - percent),
-                color1[2] - (color1[2]-color2[2])*(self.startingPercent - percent), 
-                color1[3] - (color1[3]-color2[3])*(self.startingPercent - percent)) #<show> gets the ratio between the 2 different colors
 
     def clear(self): #<show> if color needs to be removed
         # do this and make it so it removes from COLORSPRITES
-        Overview.SPRITECOLORS.remove(self) #<show> removes color from ColorSprite List
+        pass #Overview.SPRITECOLORS.remove(self) #<show> removes color from ColorSprite List
     def copy(self):
         pass #make it
 
@@ -286,4 +328,9 @@ class LinearPoint(StaticPoint):
             self.angle, self.velocity, (self.x, self.y), dt)
 
 
+
+
 # (difference in time)/duration = percent so
+
+
+#let's say in bullets. give a colour arg into it. it has a parent which is sprite which then has a parent which is everything. 

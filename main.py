@@ -2,7 +2,6 @@ from random import randint, choice
 from turtle import st
 from Bullets import BulletObject
 from enginePure import EMPTY_COLOR, FULL_COLOR, ColorOverview, LinearPoint, PolygonClass, PolygonOverview, StaticColor, StaticPoint, regularShape, verticesForCircle, RGBtoStaticColor, RAINBOW
-
 from math import degrees, atan2
 from enginePure import Overview
 import pygame
@@ -31,7 +30,7 @@ FPS = 120 #<show> Base Frames Per Second of the Game
 SCREEN_WIDTH = 1920 #<show> pixel Width of the game
 SCREEN_HEIGHT = 1080 #<show> pixel height of the game
 SCREEN_SIZE = (SCREEN_WIDTH, SCREEN_HEIGHT)
-WINDOW_SIZE = (960, 540) #x, y
+WINDOW_SIZE = (1280, 720) #x, y
 pygame.display.set_caption("Template") #<show> Sets the caption of pygame window
 #Set the Caption Window Like 'Terraria: Also Try Minecraft'
 SCREENTODISPLAYSCALAR = tuple(
@@ -44,10 +43,10 @@ HDMode = True #<show> whether the game runs on high definition meaning higher qu
 Music = True 
 # chad = BulletObject(
 #     LinearPoint(randint(0, SCREEN_WIDTH), randint(0, SCREEN_HEIGHT), 30, 0.1),
-#     PolygonOverview((PolygonClass(regularShape(120, 3), ColorOverview()), PolygonClass(regularShape(60, 3), ColorOverview(alpha=StaticColor(0))), PolygonClass(regularShape(20, 4), ColorOverview(r=FULL_COLOR, g=EMPTY_COLOR, b=EMPTY_COLOR), rotationSpeed=-1))),
-#     120)
+#     PolygonOverview((PolygonClass(regularShape(120, 3), ColorOverview()), PolygonClass(regularShape(60, 3), ColorOverview(alpha=StaticColor(0))), PolygonClass(regularShape(20, 4), ColorOverview(r=FULL_COLOR, g=EMPTY_COLOR, b=EMPTY_COLOR), rotationSpeed=-1)), rotationIncrease=1),
+#     1000000000)
 # Overview.BULLETS = [chad]
-bulletCol = ColorOverview(**RGBtoStaticColor(r=179, g=16, b=160), sprite=True)
+bulletCol = ColorOverview(**RGBtoStaticColor(r=179, g=16, b=160), bullet=True)
 bulletCol = RAINBOW         
 P1 = PlayerObject((K_w, K_s, K_d, K_a))#<show> Object of Player 1
 def Game(): #<show> Call Function of the game
@@ -57,7 +56,7 @@ def Game(): #<show> Call Function of the game
         MUSIC.set_volume(0.05)
     MUSIC.play()
     displayframe=[]
-    Overview.BGCOLOR = ColorOverview(**RGBtoStaticColor(r=14, g=18, b=36))
+    Overview.BGCOLOR = ColorOverview(**RGBtoStaticColor(r=14, g=18, b=36), isGlobal=True)
     start = 0
     white = ColorOverview()
     #surf = pygame.Surface((100, 100)), pygame.SRCALPHA)
@@ -98,25 +97,28 @@ def Game(): #<show> Call Function of the game
             bullet.update(dt)
         for trail in Overview.TRAILS: #<show> for every player
             trail.update(dt) #<show> update player
-            
-        if 0.25 < perf_counter()-start:
+        Overview.Camera.update(dt)
+
+        if 0.5 < perf_counter()-start:
             start = perf_counter()
             var = randint(-45, 45)
             if randint(0,1):
-                loc = (choice((0, SCREEN_WIDTH)), randint(0, SCREEN_HEIGHT))
+                loc = (choice((int(Overview.Camera.x), int(Overview.Camera.x + SCREEN_WIDTH))), randint(0, SCREEN_HEIGHT))
             else:
-                loc = (randint(0, SCREEN_WIDTH), choice((0, SCREEN_HEIGHT)))
+                loc = (randint(int(Overview.Camera.x), int(Overview.Camera.x + SCREEN_WIDTH)), choice((0, SCREEN_HEIGHT)))
             angle = degrees(atan2(P1.y-loc[1], P1.x - loc[0])) + var
-            col = ColorOverview(**RGBtoStaticColor(r=179, g=16, b=160), sprite=True)
+            col = ColorOverview(**RGBtoStaticColor(r=179, g=16, b=160), bullet=True)
             BulletObject(
                 LinearPoint(*loc, angle, 5),
-                PolygonOverview((PolygonClass(regularShape(20, verticesForCircle(20)), col),),), 5)
-            col.fadeFrom(white, duration=1, startingPercent=1, priority=1)
+                PolygonOverview((PolygonClass(regularShape(16, verticesForCircle(16)), col),),), 5)
+            col.fade.fadeFrom(white, duration=1, startingPercent=1)
+            Overview.TRAILFADE.fadeFrom(ColorOverview(**RGBtoStaticColor(0, 255, 0)), duration=0.1, startingPercent=1)
+
         if 0.46975 < perf_counter() - flash:
             flash = perf_counter()
-            Overview.BGCOLOR.fadeFrom(ColorOverview(**RGBtoStaticColor(255, 255, 255)), duration=0.25, startingPercent=0.1)
-            for color in Overview.SPRITECOLORS:
-                color.fadeFrom(white, duration=0.25, startingPercent=0.1, priority=0)
+            Overview.Camera.Blinking(0.25, y=-5)
+            Overview.GLOBALFADE.fadeFrom(ColorOverview(**RGBtoStaticColor(255, 255, 255)), duration=0.25, startingPercent=0.1)
+            #Overview.BGCOLOR.fade.fadeFrom(ColorOverview(**RGBtoStaticColor(255, 255, 255)), duration=0.25, startingPercent=0.1)
         
         # if 0 < perf_counter()-start:
         #     start = perf_counter()
@@ -133,12 +135,12 @@ def Game(): #<show> Call Function of the game
         SCREEN.fill(Overview.BGCOLOR.giveColorArgs())#<show> fill the screen with the background colour
         
         for trail in Overview.TRAILS:
-            SCREEN.blit(trail.image, (trail.x, trail.y))
+            SCREEN.blit(trail.image, Overview.Camera.CameraOffset(trail.x, trail.y))
         for bullet in Overview.BULLETS: #<show> for every player
-            SCREEN.blit(bullet.image, (bullet.x, bullet.y))
+            SCREEN.blit(bullet.image, Overview.Camera.CameraOffset(bullet.x, bullet.y))
         
         for player in Overview.PLAYERS: #<show> for every player
-            SCREEN.blit(player.image, (player.x, player.y)) #<show> Paste the player image at the player coordinate on the SCREEN
+            SCREEN.blit(player.image, Overview.Camera.CameraOffset(player.x, player.y)) #<show> Paste the player image at the player coordinate on the SCREEN
         if HDMode: #<show> if High Definition Mode is True
             DISPLAY.blit(pygame.transform.smoothscale(SCREEN, WINDOW_SIZE), (0, 0)) #<show> Display Screen on the Window by scaling it to it's resolution 
         else: #<show> if high Definition Mode is False
@@ -148,8 +150,7 @@ def Game(): #<show> Call Function of the game
     print ('')
     print (f'''
 Frames: {mean(displayframe[10:])}
-Sprites: {len(Overview.SPRITES)}
-COLORSPRITES: {len(Overview.SPRITECOLORS)}''')
+Sprites: {len(Overview.PLAYERS+Overview.BULLETS+Overview.TRAILS)}''')
 
 
 Game()
