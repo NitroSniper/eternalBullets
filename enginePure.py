@@ -1,15 +1,12 @@
 # mahie's code is not elite, i was gonna say it is but i dont like him :D
 
 
-
+from random import random
 from math import sin, cos, radians, sqrt, atan2, degrees, pi, ceil, acos
 from pickle import GLOBAL
 from time import perf_counter
 import pygame
 from pygame import gfxdraw
-
-from Camera import CameraObject
-
 
 
 class ModuleDependency(object):
@@ -24,6 +21,51 @@ class ModuleDependency(object):
     except ModuleNotFoundError:
         isNumbaHere = False
     allModule = all((isNumbaHere, isNumpyHere))
+
+class CameraObject(object):
+    def __init__(self):
+        self.x = 0
+        self.y = 0
+        self.dx = 0
+        self.dy = 0
+        
+
+        self.shakeOffset = (0,0)
+        self.shake = (0,0)
+        self.shakeDuration = 0
+        self.shakeStart = 0
+    def update(self, dt):
+        elapsed = perf_counter() - self.shakeStart
+        if not self.shakeDuration:
+            pass
+        elif self.shakeDuration > elapsed: #<show> means it is still going
+            self.shake = self.easing(elapsed/self.shakeDuration)
+        else:
+            self.shake = (0,0)
+            self.shakeDuration = 0
+
+        self.x += self.dx*dt
+        self.y += self.dy*dt
+    def CameraOffset(self, x, y):
+        return (x - (self.x + self.shake[0]), 
+                y - (self.y + self.shake[1]))
+
+
+    def Shaking(self, duration, magnitude):
+        self.shakeDuration = duration
+        self.shakeStart = perf_counter()
+        self.shakeOffset = ((random()-0.5)*self.shakeMagnitude, (random()-0.5)*self.shakeMagnitude)
+    
+    def Blinking(self, duration, x=0, y=0):
+        self.shakeDuration = duration
+        self.shakeStart = perf_counter()
+        self.shakeOffset = (x, y)
+
+    def easing(self, percent): #<show> find the ratio between 2 different colors
+        # 1 means more color 2, which is the newer color and 0 is more color 1
+        return (self.shakeOffset[0]*(1-percent),
+                self.shakeOffset[1]*(1-percent)) #<show> gets the ratio between the 2 different colors
+
 
 class Fading(object):
     def __init__(self, parent=None):
@@ -67,13 +109,6 @@ class Fading(object):
                 color1[2] - (color1[2]-color2[2])*(self.startingPercent - percent), 
                 color1[3] - (color1[3]-color2[3])*(self.startingPercent - percent)) #<show> gets the ratio between the 2 different colors
 
-
-#how the level script will work. 
-#(have an object that are bullets which get a start function on it so that they can spawn.)
-#(how will I do flashes and shakes? and other game changes)
-#(time)
-#DICTIONARYS, basically have it so that it can be translated into 
-
 class OverviewObject(object):
     def __init__(self):
         self.PLAYERS = []  # <show> list that holds all Players
@@ -91,7 +126,15 @@ class OverviewObject(object):
             pass
         def clean():
             self.__init__()
-Overview = OverviewObject()
+
+#how the level script will work. 
+#(have an object that are bullets which get a start function on it so that they can spawn.)
+#(how will I do flashes and shakes? and other game changes)
+#(time)
+#DICTIONARYS, basically have it so that it can be translated into 
+#A list of Tuples containing (when they spawn in seconds, )
+
+
 
 def cartesianToPolar(array):
     # output: tuple[tuple[int]] = []
@@ -112,12 +155,13 @@ def polarToCartesian(rAndBasetheta, angle):
     return [(cos(radians(theta+angle))*r, sin(radians(theta+angle))*r) for r, theta in rAndBasetheta]
 
 
-def regularShape(radius, nSide):
+def regularShape(radius, nSide, angleOffset=0):
     # side = side length
     if nSide < 3:
         nSide = 3  # if nSide is less that 3 it's not a shape
+    offset = radians(angleOffset)
     interval = 2*pi/nSide
-    return [(cos(i*interval)*radius, sin(i*interval)*radius) for i in range(nSide)]
+    return [(cos(i*interval + offset)*radius, sin(i*interval + offset)*radius) for i in range(nSide)]
 
 
 def verticesForCircle(radius):
@@ -187,13 +231,12 @@ class DynamicColor(object):
 
 
 class ColorOverview(object):
-    def __init__(self, r=FULL_COLOR, g=FULL_COLOR, b=FULL_COLOR, alpha=FULL_COLOR, bullet=False, trail=False, player=False, isGlobal=False):
+    def __init__(self, r=FULL_COLOR, g=FULL_COLOR, b=FULL_COLOR, alpha=FULL_COLOR, bullet=False, trail=False, player=False, isGlobal=False, starting=True):
         # color are given a lower and upper
         self.red = r #<show> Red Color of Color
         self.green = g #<show> Green Color of Color
         self.blue = b #<show> Blue Color of Color
         self.alpha = alpha #<show> Alpha Color of Color
-        self.start = perf_counter() #<show> when Color was Created
         if bullet: #<show> if it is linked with a bullet
             self.fade = Fading(parent=(Overview.BULLETFADE, Overview.GLOBALFADE))
         elif trail:
@@ -205,7 +248,7 @@ class ColorOverview(object):
         else:
             self.fade = Fading()
             #Overview.BULLETCOLORS.append(self) #<show> append it to BULLETCOLORS
-
+        if starting: self.starting()
 
     def update(self, dt): #<show> if update
         pass
@@ -231,6 +274,8 @@ class ColorOverview(object):
         pass #Overview.SPRITECOLORS.remove(self) #<show> removes color from ColorSprite List
     def copy(self):
         pass #make it
+    def starting(self):
+        self.start = perf_counter()
 
 
 RAINBOW = ColorOverview(
@@ -269,7 +314,7 @@ class PolygonClass(object): #<show> holds the polygon single shapes
 
 
 class PolygonOverview(object): #<show> Holds multiple Polygons
-    def __init__(self, polygons, rotation=0, rotationIncrease=1):
+    def __init__(self, polygons, rotation=0, rotationIncrease=1, starting=True):
         if type(polygons[0]) == dict: #<show> if polygons are given as a dict
             self.polygons = tuple((PolygonClass(**polygon)
                                   for polygon in polygons)) #<show> unpacks polygon and create the polygons
@@ -278,7 +323,7 @@ class PolygonOverview(object): #<show> Holds multiple Polygons
         self.internalRotation = rotation #<show> internal Rotation is set as rotation
         self.internalRotationIncrease = rotationIncrease #<show> rotation Increase is set as rotationIncrease
         self.polygonSize = max(r for i in self.polygons for r, _ in i.vertices) #<show> max radius size if polar coordinate
-
+        if starting: self.starting()
     def update(self, dt, externalRotation=0, externalRotationIncrease=0): #<show> update Loop
         self.internalRotation += (externalRotationIncrease +
                                   self.internalRotationIncrease)*dt #<show> increase internalRotation by internal and external Rotation Increase
@@ -287,6 +332,10 @@ class PolygonOverview(object): #<show> Holds multiple Polygons
 
     def clear(self): #<show> if polygon needs to be removed
         [polygon.color.clear() for polygon in self.polygons]  #<show> remove lower polygons
+    def starting(self):
+        [polygon.color.starting() for polygon in self.polygons]
+    def fadeFrom(self, *args, **kwargs):
+        [polygon.color.fade.fadeFrom(*args, **kwargs) for polygon in self.polygons]
 
 
 def drawGFXShapes(arrayOfPolygonInfo, polygonSize): #<show> drawing polygon with vertices
@@ -295,7 +344,7 @@ def drawGFXShapes(arrayOfPolygonInfo, polygonSize): #<show> drawing polygon with
         offsetted = [(v[0] + polygonSize, v[1] + polygonSize)
                      for v in vertices] #<show> offset the vertices by polygonSize
         #print (offsetted, end='\r')
-        gfxdraw.aapolygon(surf, offsetted, color) #<show> draw the antialias part of the polygon
+        #gfxdraw.aapolygon(surf, offsetted, color) #<show> draw the antialias part of the polygon
         gfxdraw.filled_polygon(surf, offsetted, color) #<show> dray the filled polygon
     return surf #<show> return Surface
 
@@ -327,6 +376,9 @@ class LinearPoint(StaticPoint):
         self.x, self.y = trigVectors(
             self.angle, self.velocity, (self.x, self.y), dt)
 
+
+
+Overview = OverviewObject()
 
 
 

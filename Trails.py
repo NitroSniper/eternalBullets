@@ -1,11 +1,11 @@
 from math import sqrt
 from time import perf_counter
-from enginePure import ModuleDependency, Overview
+from enginePure import ModuleDependency
 if ModuleDependency.allModule:
     from engine import PolygonOverview, PolygonClass
 else:
     from enginePure import PolygonOverview, PolygonClass
-
+from enginePure import Overview
 
 class TrailObject(object):
     def __init__(self, point, polygon, lifeTime):

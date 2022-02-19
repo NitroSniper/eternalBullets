@@ -7,6 +7,7 @@ from enginePure import Overview
 import pygame
 from statistics import mean
 from Player import PlayerObject
+from Level import LEVEL1
 from time import perf_counter, sleep
 from pygame.locals import (
     QUIT,
@@ -16,11 +17,40 @@ from pygame.locals import (
     K_s,
     K_d,
     K_a,
+    K_SPACE,
     K_ESCAPE
 )
 pygame.display.init()
 
 #
+
+
+class LevelRunner(object):
+    def __init__(self, level, Music=None):
+        self.level = self.convertScriptToEvalFunc(level)
+        self.index = 0
+        print (len(self.level))
+        if Music:
+            pygame.mixer.init()
+            MUSIC = pygame.mixer.Sound(f'Music/{Music}')
+            MUSIC.set_volume(0.1)
+            MUSIC.play(-1)
+        self.start = perf_counter()
+    def update(self):
+        self.spawning()
+    def spawning(self):
+        while self.index < len(self.level) and self.level[self.index][0] < perf_counter() - self.start:
+            self.level[self.index][1]()
+            self.index += 1
+    def convertScriptToEvalFunc(self, level):
+        return tuple([(time, eval('lambda: ' + expression)) for time, expression in level])
+    def loop(self):    
+        self.start = perf_counter()
+        self.index = 0
+
+
+
+
 
 
 
@@ -30,7 +60,7 @@ FPS = 120 #<show> Base Frames Per Second of the Game
 SCREEN_WIDTH = 1920 #<show> pixel Width of the game
 SCREEN_HEIGHT = 1080 #<show> pixel height of the game
 SCREEN_SIZE = (SCREEN_WIDTH, SCREEN_HEIGHT)
-WINDOW_SIZE = (1280, 720) #x, y
+WINDOW_SIZE = (1920, 1080) #x, y
 pygame.display.set_caption("Template") #<show> Sets the caption of pygame window
 #Set the Caption Window Like 'Terraria: Also Try Minecraft'
 SCREENTODISPLAYSCALAR = tuple(
@@ -45,20 +75,30 @@ Music = True
 #     LinearPoint(randint(0, SCREEN_WIDTH), randint(0, SCREEN_HEIGHT), 30, 0.1),
 #     PolygonOverview((PolygonClass(regularShape(120, 3), ColorOverview()), PolygonClass(regularShape(60, 3), ColorOverview(alpha=StaticColor(0))), PolygonClass(regularShape(20, 4), ColorOverview(r=FULL_COLOR, g=EMPTY_COLOR, b=EMPTY_COLOR), rotationSpeed=-1)), rotationIncrease=1),
 #     1000000000)
-# Overview.BULLETS = [chad]
-bulletCol = ColorOverview(**RGBtoStaticColor(r=179, g=16, b=160), bullet=True)
-bulletCol = RAINBOW         
-P1 = PlayerObject((K_w, K_s, K_d, K_a))#<show> Object of Player 1
+# Overview.BULLETS = [chad]    
+P1 = PlayerObject((K_w, K_s, K_d, K_a, K_SPACE))#<show> Object of Player 1
+LEVEL = LevelRunner(LEVEL1, 'CorruptedPart1.wav')
+# test = \
+# BulletObject(
+#     LinearPoint(920, 140, 180, 0),
+#     PolygonOverview(
+#         (
+#             PolygonClass(regularShape(32, 3, 0), ColorOverview(**RGBtoStaticColor(r=255, g=57, b=112), bullet=True), rotationSpeed=1),
+#             PolygonClass(regularShape(32, 3, 180), ColorOverview(**RGBtoStaticColor(r=255, g=57, b=112), bullet=True), rotationSpeed=1),
+#             PolygonClass(regularShape(25, verticesForCircle(20), 0), ColorOverview(**RGBtoStaticColor(r=255, g=57, b=112), bullet=True), rotationSpeed=1),
+#             ),
+#         rotation=0,
+#         rotationIncrease=1
+#     ),
+#     200)
+# test.starting()
+# white = ColorOverview()
+# test.polygon.fadeFrom(white, duration=1)
 def Game(): #<show> Call Function of the game
-    if Music:
-        pygame.mixer.init()
-        MUSIC = pygame.mixer.Sound('Bandit - Electro House.mp3')
-        MUSIC.set_volume(0.05)
-    MUSIC.play()
     displayframe=[]
-    Overview.BGCOLOR = ColorOverview(**RGBtoStaticColor(r=14, g=18, b=36), isGlobal=True)
+    #14, 18, 36
+    Overview.BGCOLOR = ColorOverview(**RGBtoStaticColor(r=8, g=12, b=14), isGlobal=True, starting=True)
     start = 0
-    white = ColorOverview()
     #surf = pygame.Surface((100, 100)), pygame.SRCALPHA)
     Overview.PLAYERS = [P1] #<show> Holds the List of Players
     program_running = True #<show> Boolean that tells if the game is running or not
@@ -66,7 +106,7 @@ def Game(): #<show> Call Function of the game
     # foo = 0
     # trin = 8
     # troll = 0
-
+    
     flash = perf_counter()
     while program_running: #<show> While Game is running
         dt = (perf_counter() - last_dt)*FPS #<show> calculate the movement multiplier for it to be time dependent
@@ -91,6 +131,7 @@ def Game(): #<show> Call Function of the game
                 program_running = False #<show> set the game loop off
         
         #GAME LOGIC
+        LEVEL.update()
         for player in Overview.PLAYERS: #<show> for every player
             player.update(dt) 
         for bullet in Overview.BULLETS: 
@@ -99,25 +140,25 @@ def Game(): #<show> Call Function of the game
             trail.update(dt) #<show> update player
         Overview.Camera.update(dt)
 
-        if 0.5 < perf_counter()-start:
-            start = perf_counter()
-            var = randint(-45, 45)
-            if randint(0,1):
-                loc = (choice((int(Overview.Camera.x), int(Overview.Camera.x + SCREEN_WIDTH))), randint(0, SCREEN_HEIGHT))
-            else:
-                loc = (randint(int(Overview.Camera.x), int(Overview.Camera.x + SCREEN_WIDTH)), choice((0, SCREEN_HEIGHT)))
-            angle = degrees(atan2(P1.y-loc[1], P1.x - loc[0])) + var
-            col = ColorOverview(**RGBtoStaticColor(r=179, g=16, b=160), bullet=True)
-            BulletObject(
-                LinearPoint(*loc, angle, 5),
-                PolygonOverview((PolygonClass(regularShape(16, verticesForCircle(16)), col),),), 5)
-            col.fade.fadeFrom(white, duration=1, startingPercent=1)
-            Overview.TRAILFADE.fadeFrom(ColorOverview(**RGBtoStaticColor(0, 255, 0)), duration=0.1, startingPercent=1)
+        # if 0.5 < perf_counter()-start:
+        #     start = perf_counter()
+        #     var = randint(-45, 45)
+        #     if randint(0,1):
+        #         loc = (choice((int(Overview.Camera.x), int(Overview.Camera.x + SCREEN_WIDTH))), randint(0, SCREEN_HEIGHT))
+        #     else:
+        #         loc = (randint(int(Overview.Camera.x), int(Overview.Camera.x + SCREEN_WIDTH)), choice((0, SCREEN_HEIGHT)))
+        #     angle = degrees(atan2(P1.y-loc[1], P1.x - loc[0])) + var
+        #     col = ColorOverview(**RGBtoStaticColor(r=179, g=16, b=160), bullet=True)
+        #     BulletObject(
+        #         LinearPoint(*loc, angle, 5),
+        #         PolygonOverview((PolygonClass(regularShape(16, verticesForCircle(16)), col),),), 5)
+        #     col.fade.fadeFrom(white, duration=1, startingPercent=1)
+        #     Overview.TRAILFADE.fadeFrom(ColorOverview(**RGBtoStaticColor(0, 255, 0)), duration=0.1, startingPercent=1)
 
-        if 0.46975 < perf_counter() - flash:
-            flash = perf_counter()
-            Overview.Camera.Blinking(0.25, y=-5)
-            Overview.GLOBALFADE.fadeFrom(ColorOverview(**RGBtoStaticColor(255, 255, 255)), duration=0.25, startingPercent=0.1)
+        # if 0.46975 < perf_counter() - flash:
+        #     flash = perf_counter()
+        #     Overview.Camera.Blinking(0.25, y=5)
+        #     Overview.GLOBALFADE.fadeFrom(ColorOverview(**RGBtoStaticColor(255, 255, 255)), duration=0.25, startingPercent=0.1)
             #Overview.BGCOLOR.fade.fadeFrom(ColorOverview(**RGBtoStaticColor(255, 255, 255)), duration=0.25, startingPercent=0.1)
         
         # if 0 < perf_counter()-start:
