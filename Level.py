@@ -12,6 +12,11 @@ from enginePure import (
 )
 
 
+LEVEL0 = (
+    (3, '''LEVEL.Finish(1800, 540, 0, 0)'''),
+)
+
+
 LEVEL1 = (
     (0, '''BulletObject(
     LinearPoint(1920, 540, 180, 3),
@@ -169,18 +174,7 @@ LEVEL1 = (
         rotationIncrease=1
     ),
     6)'''),
-    (6.930, '''BulletObject(
-    LinearPoint(1920, 540, 180, 3),
-    PolygonOverview(
-        (
-            PolygonClass(regularShape(32, 3, 0), ColorOverview(**RGBtoStaticColor(r=255, g=57, b=112), bullet=True), rotationSpeed=1),
-            PolygonClass(regularShape(32, 3, 180), ColorOverview(**RGBtoStaticColor(r=255, g=57, b=112), bullet=True), rotationSpeed=1),
-            PolygonClass(regularShape(25, verticesForCircle(20), 0), ColorOverview(**RGBtoStaticColor(r=255, g=57, b=112), bullet=True), rotationSpeed=1),
-            ),
-        rotation=0,
-        rotationIncrease=1
-    ),
-    6)'''),
+    (6.930, '''LEVEL.Finish(1800, 440, 0, 0)'''),
     (6.930, '''LEVEL.loop()'''),
 
 )

@@ -5,7 +5,7 @@ from typing import Union
 import pygame
 from time import perf_counter
 from random import randint, random
-from enginePure import ModuleDependency, regularShape, RAINBOW, EMPTY_COLOR, FULL_COLOR
+from enginePure import ModuleDependency, minmax, regularShape, RAINBOW, EMPTY_COLOR, FULL_COLOR
 from Trails import TrailObject
 from math import sqrt, atan2, degrees
 from enginePure import Overview
@@ -79,21 +79,26 @@ class PlayerObject(object):
                 self.lastInvinciblity = perf_counter()-0.875
                 self.speed = 40
         self.x += direction[0]; self.y += direction[1] #<show> add direction onto player current position
+
+        self.x = minmax(Overview.Camera.x, 1920 + Overview.Camera.x-self.size, self.x)
+        self.y = minmax(Overview.Camera.y, 1080 + Overview.Camera.y-self.size, self.y)
+
+
         self.direction = degrees(atan2(-direction[1], -direction[0])) #<show> find the angle the player is going to
         
         
         self.polygon.update(dt, externalRotation=self.direction+externalRotation) #<show> update player polygon image
         self.image = self.polygon.image #<show> set polygon image as image
         
-        if 0.0625 < perf_counter() - self.dashStart:
+        if 0.0625 < perf_counter() - self.dashStart + Overview.TIMEDELAY:
             self.speed = 4
 
         
-        if self.moving and 0.1 < perf_counter() - self.trailStart: #<show> if moving and you can spawn another trail
+        if self.moving and 0.1 < perf_counter() - self.trailStart + Overview.TIMEDELAY: #<show> if moving and you can spawn another trail
             self.trailStart = perf_counter() #<show> set trail spawn last as now
-            self.createTrail((4, 12), 10, 5, 5)
+            self.createTrail((4, 12), 10, 5, 2)
 
-        if 1 < perf_counter() - self.lastInvinciblity:  #<show> if player is not invincible
+        if 1 < perf_counter() - self.lastInvinciblity + Overview.TIMEDELAY:  #<show> if player is not invincible
             rect = self.get_rect() #<show> get player rect
             for bullet in Overview.BULLETS: #<show> for all bullets
                 bulletRect = bullet.get_rect() #<show> get bullet rect

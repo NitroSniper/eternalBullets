@@ -1,33 +1,28 @@
 from math import sqrt
 from time import perf_counter
-from enginePure import ColorOverview, ModuleDependency
+from MenuObjects import ScreenObject
+from enginePure import ColorOverview, ModuleDependency, WHITE
 if ModuleDependency.allModule:
     from engine import PolygonOverview, PolygonClass
 else:
     from enginePure import PolygonOverview, PolygonClass
 from enginePure import Overview
 
-class BulletObject(object):
-
-
+class BulletObject(ScreenObject):
     def __init__(self, point, polygon, lifeTime):
-        self.point = point
-        self.polygon = polygon
-        self.lifeTime = lifeTime
-        self.starting()
-        self.polygon.fadeFrom(ColorOverview(), duration=1)
+        super().__init__(polygon=polygon, point=point) #<show> do regular creation of ScreenObjects
+        self.lifeTime = lifeTime #<show> how long the bullet last
+        self.starting() #<show> make the bullet start
+        self.polygon.fadeFrom(WHITE, duration=1) #<show> make the bullet fade from White
     def update(self, dt, externalRotation=0):
-        self.polygon.update(dt, externalRotation=externalRotation)
-        self.image = self.polygon.image
-        self.point.update(dt)
-        self.x, self.y = self.point.x, self.point.y
-        if self.lifeTime < perf_counter() - self.start:
-            self.polygon.clear()
-            Overview.BULLETS.remove(self)
+        self.objectUpdate(dt, externalRotation) #<show> do regular update of point and polygon
+        if self.lifeTime < perf_counter() - self.start: #<show> if the bullet has lasted longer than it's lifetime
+            self.polygon.clear() #<show> kill the polygon
+            Overview.BULLETS.remove(self) #<show> remove the Bullet
     def get_rect(self):
         return self.image.get_rect(topleft=(self.x, self.y))
     
     def starting(self):
-        self.start = perf_counter()
-        self.update(0)
-        Overview.BULLETS.append(self)
+        self.start = perf_counter() #<show> get the time it was created
+        self.update(0) #<show> update itself
+        Overview.BULLETS.append(self) #<show> appends itself to BULLETS
