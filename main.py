@@ -253,60 +253,58 @@ def MainMenu():
         rotationIncrease=0
         ), None, ColorOverview())
     
-    polygonTimer = perf_counter()
-    Overview.BGCOLOR = ColorOverview(**RGBtoStaticColor(r=13, g=21, b=24))
-    shake = perf_counter()
-    listofPos = list(range(1920))
+    polygonTimer = perf_counter() #<show> current time that squares are created 
+    Overview.BGCOLOR = ColorOverview(**RGBtoStaticColor(r=13, g=21, b=24)) #<show> Create BackGround Colour
+    shake = perf_counter() #<show> current time when square is created. 
     while program_running: #<show> While Menu is running
         dt = (perf_counter() - last_dt)*FPS #<show> calculate the movement multiplier for it to be time dependent
         last_dt = perf_counter() #<show> last Game Loop time
 
-        mousePos = transformMousePos(pygame.mouse.get_pos())
+        mousePos = transformMousePos(pygame.mouse.get_pos()) #<show> get mouse pos
         for event in pygame.event.get(): #<show> for new events happening
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    if currentButton is not None:
-                        function = currentButton.function
-                        program_running = False
+            if event.type == pygame.MOUSEBUTTONDOWN: #<show> if the button is pressing down
+                if event.button == 1: #<show> if it's left click
+                    if currentButton is not None: #<show> 
+                        function = currentButton.function #<show> get the function
+                        program_running = False #<show> return
             elif event.type == KEYDOWN: #if a key is pressed down
                 if event.key == K_ESCAPE: #<show> if new event is quit
-                    program_running = False
+                    program_running = False #<show> program sto running
             elif event.type == QUIT: #<show> if new event is quit
                 program_running = False #<show> set the game loop off
         #LOGIC
         generator = iter(Overview.BUTTONS)
         currentButton = None
-        Overview.Camera.update(dt)
-        for button in generator:
-            side = next(generator)
-            if any((button.underneathMouse(mousePos), side.underneathMouse(mousePos))):
-                button.polygon.fadeFrom(button.fadeColor, 0.5)
+        Overview.Camera.update(dt) #<show> update Camera
+        for button in generator: #<show> for every button
+            side = next(generator) #<show> get the side button
+            if any((button.underneathMouse(mousePos), side.underneathMouse(mousePos))): #<show> if the mouse is touching either of them
+                button.polygon.fadeFrom(button.fadeColor, 0.5) #<show> turn to secondary Colour
                 side.polygon.fadeFrom(side.fadeColor, 0.5)
                 button.font = Overview.NEXA_BOLD
                 currentButton = button
             else:
                 button.font = Overview.NEXA_LIGHT
                 
-        if 0.5 < perf_counter() - polygonTimer:
+        if 0.5 < perf_counter() - polygonTimer: #<show> if it is time to create Polygon
             polygonTimer = perf_counter()
-            TrailObject(LinearPoint(randint(0, 1920), 1080, 270, 1),
+            TrailObject(LinearPoint(randint(0, 1920), 1080, 270, 1), #<show> create a square
                     PolygonOverview((PolygonClass(regularShape(randint(10, 300), 4), color=ColorOverview(
                                 r=DynamicColor(0, 128, 255, DynamicColor.posSinColor),
                                 g=DynamicColor(120, 128, 255, DynamicColor.posSinColor),
                                 b=DynamicColor(240, 128, 255, DynamicColor.posSinColor),
                                 alpha=StaticColor(80), isGlobal=True), rotationSpeed=random()*choice((-1, 1))),), randint(1,360), 1, starting=True), 7)
 
-        if 0.46875 < perf_counter() - shake:
+        if 0.46875 < perf_counter() - shake: #<show> if it is time for shake
             shake = perf_counter()
-            Overview.Camera.Blinking(0.1, y=5)
-            Overview.TRAILFADE.fadeFrom(RAINBOW, 0.5, 1)
+            Overview.Camera.Blinking(0.1, y=5) #<show> Screen shake
             Overview.BGCOLOR.fade.fadeFrom(WHITE, 0.1, 0.05)
-        for button in Overview.BUTTONS:
-            button.update(dt)
-        for trail in Overview.TRAILS:
-            trail.update(dt)
+        for button in Overview.BUTTONS: #<show> for all buttons 
+            button.update(dt) #<show> update button
+        for trail in Overview.TRAILS: #<show> for all trail in Trails
+            trail.update(dt) #<show> update trail
         #Drawing
-        SCREEN.fill(Overview.BGCOLOR.giveColorArgs())
+        SCREEN.fill(Overview.BGCOLOR.giveColorArgs()) #<show> fill Screen with background colour
         for trail in Overview.TRAILS:
             SCREEN.blit(trail.image, Overview.Camera.CameraOffset(trail.x, trail.y))
         
