@@ -8,19 +8,20 @@ else:
     from enginePure import PolygonOverview, PolygonClass
 from enginePure import Overview
 
+
 class TrailObject(ScreenObject):
     def __init__(self, point, polygon, lifeTime):
-        super().__init__(polygon=polygon, point=point) #<show> do regular creation of ScreenObjects
+        # <show> do regular creation of ScreenObjects
+        super().__init__(polygon=polygon, point=point)
+        # <show> add the object to the Trails List in Overview
         Overview.TRAILS.append(self)
-        self.start = perf_counter()
-        self.lifeTime = lifeTime
+        self.start = perf_counter()  # <show> holds the current time it was created
+        self.lifeTime = lifeTime  # <show> how long the trail will survive
         self.update(0)
+
     def update(self, dt, externalRotation=0):
+        # <show> update the polyon and position with ScreenObject.objectUpdate function
         self.objectUpdate(dt, externalRotation=externalRotation)
-        self.image = self.polygon.image
-        self.point.update(dt)
-        # print (self.polygon.polygons[0].color.giveColorArgs())
-        if self.lifeTime < perf_counter() - self.start:
+        if self.lifeTime < perf_counter() - self.start:  # <show> if the trail lasts longer than it's lifetime
+            # <show> remove the trail from Overview.
             Overview.TRAILS.remove(self)
-    def get_rect(self):
-        return self.image.get_rect(topleft=(self.x, self.y))

@@ -8,6 +8,7 @@ from time import perf_counter
 import pygame
 from pygame import gfxdraw
 
+
 class ModuleDependency(object):
     try:
         import numpy
@@ -21,106 +22,146 @@ class ModuleDependency(object):
         isNumbaHere = False
     allModule = all((isNumbaHere, isNumpyHere))
 
+
+
+class DecayingNumber(object):
+    def __init__(self):
+        self.currentNumber = 0
+        self.start = perf_counter()
+        self.duration = 0
+    def update(self):
+        elapsed = perf_counter() - self.start
+        if not self.duration:
+            pass
+        elif self.duration > elapsed:  # <show> means it is still going
+            self.currentNumber = self.number*(1-elapsed/self.duration)
+        else:
+            self.currentNumber = 0
+            self.duration = 0
+    
+    def setDecayingValue(self, number, duration):
+        self.duration = duration
+        self.number = number
+        self.start = perf_counter()
+
+
 class CameraObject(object):
     def __init__(self):
         self.x = 0
         self.y = 0
         self.dx = 0
         self.dy = 0
-        
 
-        self.shakeOffset = (0,0)
-        self.shake = (0,0)
-        self.shakeDuration = 0
-        self.shakeStart = 0
+        self.shake = (DecayingNumber(), DecayingNumber())
+
     def update(self, dt):
-        elapsed = perf_counter() - self.shakeStart
-        if not self.shakeDuration:
-            pass
-        elif self.shakeDuration > elapsed: #<show> means it is still going
-            self.shake = self.easing(elapsed/self.shakeDuration)
-        else:
-            self.shake = (0,0)
-            self.shakeDuration = 0
+        
+        for shakeAxis in self.shake:
+            shakeAxis.update()
 
         self.x += self.dx*dt
         self.y += self.dy*dt
+
     def CameraOffset(self, x, y):
-        return (x - (self.x + self.shake[0]), 
-                y - (self.y + self.shake[1]))
+        return (x - (self.x + self.shake[0].currentNumber),
+                y - (self.y + self.shake[1].currentNumber))
 
+    # def Shaking(self, duration, magnitude):
+    #     self.shakeDuration = duration
+    #     self.shakeStart = perf_counter()
+    #     self.shakeOffset = ((random()-0.5)*self.shakeMagnitude,
+    #                         (random()-0.5)*self.shakeMagnitude)
 
-    def Shaking(self, duration, magnitude):
-        self.shakeDuration = duration
-        self.shakeStart = perf_counter()
-        self.shakeOffset = ((random()-0.5)*self.shakeMagnitude, (random()-0.5)*self.shakeMagnitude)
-    
     def Blinking(self, duration, x=0, y=0):
-        self.shakeDuration = duration
-        self.shakeStart = perf_counter()
-        self.shakeOffset = (x, y)
+        for shakeAxis, number in zip(self.shake, (x,y)):
+            if number:
+                shakeAxis.setDecayingValue(number, duration)
+        # self.shakeDuration = duration
+        # self.shakeStart = perf_counter()
+        # self.shakeOffset = (x, y)
 
-    def easing(self, percent): #<show> find the ratio between 2 different points
+    def easing(self, percent):  # <show> find the ratio between 2 different points
         # 1 means more color 2, which is the newer color and 0 is more color 1
         return (self.shakeOffset[0]*(1-percent),
-                self.shakeOffset[1]*(1-percent)) #<show> gets the ratio between the 2 different points
+                self.shakeOffset[1]*(1-percent))  # <show> gets the ratio between the 2 different points
 
 
 class Fading(object):
     def __init__(self, parent=None):
-        self.fadeColor = None #<show> set fadeColor as color given
-        self.fadeDuration = None #<show> set fadeDuration as duration given
-        self.fadeStart = None #<show> set fade start as current time
-        self.startingPercent = None #<show> set startingPercent for ratio color as percent given
-        self.alphaMultiplier = None #<show> find out the alpha Mutliplier so it still goes the same speed
-        self.priority = None #<show> give the fading a priority which it has
-        self.From = True
+        self.fadeColor = None  # <show> set fadeColor as color given
+        self.fadeDuration = None  # <show> set fadeDuration as duration given
+        self.fadeStart = None  # <show> set fade start as current time
+        # <show> set startingPercent for ratio color as percent given
+        self.startingPercent = None
+        # <show> find out the alpha Mutliplier so it still goes the same speed
+        self.alphaMultiplier = None
+        self.priority = None  # <show> give the fading a priority which it has
+        self.fromfunc = None
         if parent is None:
             self.parent = (self,)
         else:
             self.parent = (self,) + parent
-    def fading(self, r, g, b, alpha): #<show> if fading is possible
+
+    def fading(self, r, g, b, alpha):  # <show> if fading is possible
         col = (r, g, b, alpha)
         for obj in self.parent:
             if not obj.fadeDuration:  # if fadeDuration is 0 then return
-                continue #<show> return normal color
-            elapsed = perf_counter() - obj.fadeStart #<show> show the elapsed amount of time since it was created
-            if elapsed/(obj.alphaMultiplier) < obj.startingPercent: #<show> if the fading is still happening 
-                col = obj.ratioColor(col, elapsed/obj.alphaMultiplier, obj.From) #<show> return the ratio between the two colors
-            else: #<show> if not fading meaning it has just finished
-                obj.fadeDuration = 0 #<show> set to 0
-                obj.priority = None #<show> it has no priority
+                continue  # <show> return normal color
+            # <show> show the elapsed amount of time since it was created
+            elapsed = perf_counter() - obj.fadeStart
+            # <show> if the fading is still happening
+            if elapsed/(obj.alphaMultiplier) < obj.startingPercent:
+                # <show> return the ratio between the two colors
+                col = obj.ratioColor(
+                    col, elapsed/obj.alphaMultiplier, obj.fromfunc)
+            else:  # <show> if not fading meaning it has just finished
+                obj.fadeDuration = 0  # <show> set to 0
+                obj.priority = None  # <show> it has no priority
                 continue
         return col
-    
-    def fadeFrom(self, color, duration, startingPercent=1, priority=0): #<show> if fading from a color
-        self.fadeColor = color #<show> set fadeColor as color given
-        self.fadeDuration = duration #<show> set fadeDuration as duration given
-        self.fadeStart = perf_counter() #<show> set fade start as current time
-        self.startingPercent = startingPercent #<show> set startingPercent for ratio color as percent given
-        self.alphaMultiplier = duration/(startingPercent) #<show> find out the alpha Mutliplier so it still goes the same speed
-        self.priority = priority #<show> give the fading a priority which it has
-        self.From = True
+
+    # <show> if fading from a color
+    def fadeFrom(self, color, duration, startingPercent=1, priority=0):
+        self.fadeColor = color  # <show> set fadeColor as color given
+        self.fadeDuration = duration  # <show> set fadeDuration as duration given
+        self.fadeStart = perf_counter()  # <show> set fade start as current time
+        # <show> set startingPercent for ratio color as percent given
+        self.startingPercent = startingPercent
+        # <show> find out the alpha Mutliplier so it still goes the same speed
+        self.alphaMultiplier = duration/(startingPercent)
+        self.priority = priority  # <show> give the fading a priority which it has
+        self.fromfunc = True
+
     def fadeTo(self, color, duration, startingPercent=1, priority=0):
-        self.fadeColor = color #<show> set fadeColor as color given
-        self.fadeDuration = duration #<show> set fadeDuration as duration given
-        self.fadeStart = perf_counter() #<show> set fade start as current time
-        self.startingPercent = startingPercent #<show> set startingPercent for ratio color as percent given
-        self.alphaMultiplier = duration/(startingPercent) #<show> find out the alpha Mutliplier so it still goes the same speed
-        self.priority = priority #<show> give the fading a priority which it has        
-        self.From = False
-    def ratioColor(self, color1, percent, From=True): #<show> find the ratio between 2 different colors
+        self.fadeColor = color  # <show> set fadeColor as color given
+        self.fadeDuration = duration  # <show> set fadeDuration as duration given
+        self.fadeStart = perf_counter()  # <show> set fade start as current time
+        # <show> set startingPercent for ratio color as percent given
+        self.startingPercent = startingPercent
+        # <show> find out the alpha Mutliplier so it still goes the same speed
+        self.alphaMultiplier = duration/(startingPercent)
+        self.priority = priority  # <show> give the fading a priority which it has
+        self.fromfunc = False
+
+    # <show> find the ratio between 2 different colors
+    def ratioColor(self, color1, percent, fromfunc=True):
         # 1 means more color 2, which is the newer color and 0 is more color 1
-        color2 = self.fadeColor.giveColorArgs() #<show> get color2 color arguments
-        if From:
+        color2 = self.fadeColor.giveColorArgs()  # <show> get color2 color arguments
+        if fromfunc:
             return (color1[0] - (color1[0]-color2[0])*(self.startingPercent - percent),
-                    color1[1] - (color1[1]-color2[1])*(self.startingPercent - percent),
-                    color1[2] - (color1[2]-color2[2])*(self.startingPercent - percent), 
-                    color1[3] - (color1[3]-color2[3])*(self.startingPercent - percent)) #<show> gets the ratio between the 2 different colors
+                    color1[1] - (color1[1]-color2[1]) *
+                    (self.startingPercent - percent),
+                    color1[2] - (color1[2]-color2[2]) *
+                    (self.startingPercent - percent),
+                    color1[3] - (color1[3]-color2[3])*(self.startingPercent - percent))  # <show> gets the ratio between the 2 different colors
         return (color2[0] + (color1[0]-color2[0])*(self.startingPercent - percent),
-                color2[1] + (color1[1]-color2[1])*(self.startingPercent - percent),
-                color2[2] + (color1[2]-color2[2])*(self.startingPercent - percent), 
+                color2[1] + (color1[1]-color2[1]) *
+                (self.startingPercent - percent),
+                color2[2] + (color1[2]-color2[2]) *
+                (self.startingPercent - percent),
                 color2[3] + (color1[3]-color2[3])*(self.startingPercent - percent))
+
+
 class OverviewObject(object):
     def __init__(self):
         self.TIMEDELAY = 0
@@ -133,35 +174,44 @@ class OverviewObject(object):
         self.GLOBALFADE = Fading()
         self.PLAYERFADE = Fading()
         self.TRAILFADE = Fading()
-        
+
         self.Camera = CameraObject()
         self.NEXA_BOLD = r'data\Fonts\Nexa Bold.otf'
         self.NEXA_LIGHT = r'data\Fonts\Nexa Light.otf'
+
+        self.TOTALLIVES = 3
+
     def update(self):
         pass
+
     def clean(self):
         self.__init__()
+
     def quickClean(self):
         self.TRAILS = []  # <show> list that holds all trails
         self.BULLETS = []  # <show> list that holds all Bullets
 
-#how the level script will work. 
-#(have an object that are bullets which get a start function on it so that they can spawn.)
-#(how will I do flashes and shakes? and other game changes)
-#(time)
-#DICTIONARYS, basically have it so that it can be translated into 
-#A list of Tuples containing (when they spawn in seconds, )
+# how the level script will work.
+# (have an object that are bullets which get a start function on it so that they can spawn.)
+# (how will I do flashes and shakes? and other game changes)
+# (time)
+# DICTIONARYS, basically have it so that it can be translated into
+# A list of Tuples containing (when they spawn in seconds, )
+
 
 Overview = OverviewObject()
 
-def perf_counter_TimeDelay():
-    perf_counter() - Overview.TIMEDELAY
+
+
+
 
 def convertPointToMid(vertices):
     xCoord = [x for x, _ in vertices]
     yCoord = [y for _, y in vertices]
-    xOffset, yOffset = (max(xCoord) - min(xCoord))/2 - max(xCoord), (max(yCoord) - min(yCoord))/2 - max(yCoord)
+    xOffset, yOffset = (max(xCoord) - min(xCoord))/2 - \
+        max(xCoord), (max(yCoord) - min(yCoord))/2 - max(yCoord)
     return tuple([(v[0] + xOffset, v[1] + yOffset) for v in vertices])
+
 
 def cartesianToPolar(array):
     # output: tuple[tuple[int]] = []
@@ -225,10 +275,11 @@ class DynamicColor(object):
         self.baseColor = color  # <show> holds the starting color of the color
         # <show> hold the starting and ending limits
         self.limits = (lowerBound, upperBound)
-        self.difference = upperBound - lowerBound if upperBound - lowerBound else 1  # <show> holds the difference between the 2 limits
+        self.difference = upperBound - lowerBound if upperBound - \
+            lowerBound else 1  # <show> holds the difference between the 2 limits
         if overflowFunc != DynamicColor.modColor:
             # <show> holds the waveLength distance for sinFuncs
-            self.waveLength = 2*pi/self.difference
+            self.waveLength = pi/self.difference
             # <show> holds the centre color for sinFuncs
             self.centre = (lowerBound+upperBound)/2
             # <show> is the starting angle in sinColor instead
@@ -255,47 +306,53 @@ class DynamicColor(object):
         return self.limits[0]+max(0, sin(color*self.waveLength)*self.difference)
 
 
-
-
 class ColorOverview(object):
     def __init__(self, r=FULL_COLOR, g=FULL_COLOR, b=FULL_COLOR, alpha=FULL_COLOR, bullet=False, trail=False, player=False, isGlobal=False, starting=True):
         # color are given a lower and upper
-        self.red = r #<show> Red Color of Color
-        self.green = g #<show> Green Color of Color
-        self.blue = b #<show> Blue Color of Color
-        self.alpha = alpha #<show> Alpha Color of Color
-        if bullet: #<show> if it is linked with a bullet
-            self.fade = Fading(parent=(Overview.BULLETFADE, Overview.GLOBALFADE))
+        self.red = r  # <show> Red Color of Color
+        self.green = g  # <show> Green Color of Color
+        self.blue = b  # <show> Blue Color of Color
+        self.alpha = alpha  # <show> Alpha Color of Color
+        if bullet:  # <show> if it is linked with a bullet
+            self.fade = Fading(
+                parent=(Overview.BULLETFADE, Overview.GLOBALFADE))
         elif trail:
-            self.fade = Fading(parent=(Overview.TRAILFADE, Overview.GLOBALFADE))
+            self.fade = Fading(
+                parent=(Overview.TRAILFADE, Overview.GLOBALFADE))
         elif player:
-            self.fade = Fading(parent=(Overview.PLAYERFADE, Overview.GLOBALFADE))
+            self.fade = Fading(
+                parent=(Overview.PLAYERFADE, Overview.GLOBALFADE))
         elif isGlobal:
             self.fade = Fading(parent=(Overview.GLOBALFADE,))
         else:
             self.fade = Fading()
-            #Overview.BULLETCOLORS.append(self) #<show> append it to BULLETCOLORS
-        if starting: self.starting()
+            # Overview.BULLETCOLORS.append(self) #<show> append it to BULLETCOLORS
+        if starting:
+            self.starting()
 
-    def update(self, dt): #<show> if update
+    def update(self, dt):  # <show> if update
         pass
 
-    def giveColorArgs(self, alpha=True, fade=True): #<show> when giving color arguments
-        ColorMultiplier = (perf_counter() - self.start)/1 #<show> color in terms of when it was created.
-        if alpha: #<show> if alpha is wanted
+    def giveColorArgs(self, alpha=True, fade=True):  # <show> when giving color arguments
+        # <show> color in terms of when it was created.
+        ColorMultiplier = (perf_counter() - self.start)/1
+        if alpha:  # <show> if alpha is wanted
             return self.fade.fading(self.red.returnColor(ColorMultiplier),
-                               self.green.returnColor(ColorMultiplier),
-                               self.blue.returnColor(ColorMultiplier),
-                               self.alpha.returnColor(ColorMultiplier)) #<show> get color of all different color base class
+                                    self.green.returnColor(ColorMultiplier),
+                                    self.blue.returnColor(ColorMultiplier),
+                                    self.alpha.returnColor(ColorMultiplier))  # <show> get color of all different color base class
         return (self.red.returnColor(ColorMultiplier),
                 self.green.returnColor(ColorMultiplier),
-                self.blue.returnColor(ColorMultiplier)) #<show> get color of all different color base class
+                self.blue.returnColor(ColorMultiplier))  # <show> get color of all different color base class
 
-    def clear(self): #<show> if color needs to be removed
+    def clear(self):  # <show> if color needs to be removed
         # do this and make it so it removes from COLORSPRITES
-        pass #Overview.SPRITECOLORS.remove(self) #<show> removes color from ColorSprite List
+        # Overview.SPRITECOLORS.remove(self) #<show> removes color from ColorSprite List
+        pass
+
     def copy(self):
-        pass #make it
+        pass  # make it
+
     def starting(self):
         self.start = perf_counter()
 
@@ -303,38 +360,36 @@ class ColorOverview(object):
 RAINBOW = ColorOverview(
     r=DynamicColor(0, 128, 255, DynamicColor.posSinColor),
     g=DynamicColor(120, 128, 255, DynamicColor.posSinColor),
-    b=DynamicColor(240, 128, 255, DynamicColor.posSinColor), isGlobal=True) #<show> A cool Rainbow Color Object
+    b=DynamicColor(240, 128, 255, DynamicColor.posSinColor), isGlobal=True)  # <show> A cool Rainbow Color Object
 
 
-def formaliseTupleColor(args): #<show> if Tuple is given as argument
-    # tuple should look like this (func, (list of color), defualt args)
-    func = args[0] #<show> function is it's first argument 
-    args = [func(col, *args[2:]) for i, col in enumerate(args[1])] #<show> puts a function on args to get color args
-    return ColorOverview(*args) #<show> return color args
 
 
-WHITE = ColorOverview() #<show> White Color Args
+
+WHITE = ColorOverview()  # <show> White Color Args
+
 
 def minmax(minimum, maximum, val):
     return min(max(minimum, val), maximum)
 
 
-class PolygonClass(object): #<show> holds the polygon single shapes
+class PolygonClass(object):  # <show> holds the polygon single shapes
     def __init__(self, vertices, color=WHITE, rotationSpeed=1, isRotating=True):
         if isRotating:
-            self.vertices = cartesianToPolar(vertices) #<show> holds the polar version of the vertices of the shape
+            # <show> holds the polar version of the vertices of the shape
+            self.vertices = cartesianToPolar(vertices)
         else:
             self.vertices = vertices
         self.isRotating = isRotating
-        self.rotationSpeed = rotationSpeed #<show> holds the polygon rotationSpeed
-        if type(color) == dict: #<show> if color is given as a dictionary
-            self.color = ColorOverview(**color) #<show> unpacks dictionary and is given is self.color
-        elif type(color) == tuple: #<show> if it is given as a tuple
-            self.color = formaliseTupleColor(color) #<show> formalise tuple to class object
-        else: #<show> if it already an Object
-            self.color = color #<show> set it to self.color
+        self.rotationSpeed = rotationSpeed  # <show> holds the polygon rotationSpeed
+        if type(color) == dict:  # <show> if color is given as a dictionary
+            # <show> unpacks dictionary and is given is self.color
+            self.color = ColorOverview(**color)
+        else:  # <show> if it already an Object
+            self.color = color  # <show> set it to self.color
 
-    def giveGFXArgs(self, rotation): #<show> if it needs to get the cartesian coordinate of its vertices
+    # <show> if it needs to get the cartesian coordinate of its vertices
+    def giveGFXArgs(self, rotation):
         if self.isRotating:
             return (polarToCartesian(self.vertices, rotation*self.rotationSpeed), self.color.giveColorArgs())
         return (self.vertices, self.color.giveColorArgs())
@@ -343,60 +398,83 @@ class PolygonClass(object): #<show> holds the polygon single shapes
         return f'{len(self.vertices)} shape polygon with {str(self.rotation)[:5]} rotation'
 
 
-class PolygonOverview(object): #<show> Holds multiple Polygons
-    def __init__(self, polygons, rotation=0, rotationIncrease=1, starting=True):
+class PolygonOverview(object):  # <show> Holds multiple Polygons
+    def __init__(self, polygons, rotation=0, rotationIncrease=1, rotationIncreaseIncrease=0, starting=True):
         if not (rotation or rotationIncrease):
             self.isRotating = False
         else:
             self.isRotating = True
 
-        
-        if type(polygons[0]) == dict: #<show> if polygons are given as a dict
+        if type(polygons[0]) == dict:  # <show> if polygons are given as a dict
             self.polygons = tuple((PolygonClass(**polygon, isRotating=self.isRotating)
-                                  for polygon in polygons)) #<show> unpacks polygon and create the polygons
+                                  for polygon in polygons))  # <show> unpacks polygon and create the polygons
         else:
-            self.polygons = polygons #<show> set it to Polygons
-        self.internalRotation = rotation #<show> internal Rotation is set as rotation
-        self.internalRotationIncrease = rotationIncrease #<show> rotation Increase is set as rotationIncrease
+            self.polygons = polygons  # <show> set it to Polygons
+        self.internalRotation = rotation  # <show> internal Rotation is set as rotation
+        # <show> rotation Increase is set as rotationIncrease
+        self.internalRotationIncrease = rotationIncrease
+        self.internalRotationIncreaseIncrease = rotationIncreaseIncrease
         if self.isRotating:
-            self.polygonSize = max(r for i in self.polygons for r, _ in i.vertices) #<show> max radius size if polar coordinate
+            # <show> max radius size if polar coordinate
+            self.polygonSize = max(
+                r for i in self.polygons for r, _ in i.vertices)
         else:
             foo = [i for poly in self.polygons for i in poly.vertices]
-            self.polygonSize = (max((i for i, _ in foo)), max((i for _, i in foo)))
-        if starting: self.starting()
-    def update(self, dt, externalRotation=0, externalRotationIncrease=0): #<show> update Loop
-        self.internalRotation += (externalRotationIncrease +
-                                  self.internalRotationIncrease)*dt #<show> increase internalRotation by internal and external Rotation Increase
-        rotation = self.internalRotation + externalRotation #<show> find the shape rotation by adding internal and external rotations
-        self.image = drawGFXShapes([polygon.giveGFXArgs(rotation) for polygon in self.polygons], self.polygonSize, self.isRotating) #<show> get the polygon vertices from the multiple child polygons
+            self.polygonSize = (max((i for i, _ in foo)),
+                                max((i for _, i in foo)))
+        if starting:
+            self.starting()
 
-    def clear(self): #<show> if polygon needs to be removed
-        [polygon.color.clear() for polygon in self.polygons]  #<show> remove lower polygons
+    def update(self, dt, externalRotation=0, externalRotationIncrease=0, lives=None):  # <show> update Loop
+        self.internalRotation += (externalRotationIncrease +
+                                  self.internalRotationIncrease)*dt  # <show> increase internalRotation by internal and external Rotation Increase
+        # <show> find the shape rotation by adding internal and external rotations
+        rotation = self.internalRotation + externalRotation
+        # <show> get the polygon vertices from the multiple child polygons
+        self.image = drawGFXShapes([polygon.giveGFXArgs(
+            rotation) for polygon in self.polygons], self.polygonSize, self.isRotating, lives)
+
+    def clear(self):  # <show> if polygon needs to be removed
+        # <show> remove lower polygons
+        [polygon.color.clear() for polygon in self.polygons]
+
     def starting(self):
         [polygon.color.starting() for polygon in self.polygons]
+
     def fadeFrom(self, *args, **kwargs):
-        [polygon.color.fade.fadeFrom(*args, **kwargs) for polygon in self.polygons]
+        [polygon.color.fade.fadeFrom(*args, **kwargs)
+         for polygon in self.polygons]
+
     def color(self):
         return self.polygons[0].color
 
 
-def drawGFXShapes(arrayOfPolygonInfo, polygonSize, isRotating): #<show> drawing polygon with vertices
+# <show> drawing polygon with vertices
+def drawGFXShapes(arrayOfPolygonInfo, polygonSize, isRotating, lives):
     if isRotating:
-        surf = pygame.Surface((2*(polygonSize), 2*(polygonSize)), pygame.SRCALPHA) #<show> draw blank Surface
-        for vertices, color in arrayOfPolygonInfo: #<show> for each polygon vertices and color
+        # <show> draw blank Surface
+        surf = pygame.Surface(
+            (2*(polygonSize), 2*(polygonSize)), pygame.SRCALPHA)
+        for vertices, color in arrayOfPolygonInfo:  # <show> for each polygon vertices and color
             offsetted = [(v[0] + polygonSize, v[1] + polygonSize)
-                        for v in vertices] #<show> offset the vertices by polygonSize
+                         for v in vertices]  # <show> offset the vertices by polygonSize
             #print (offsetted, end='\r')
-            #gfxdraw.aapolygon(surf, offsetted, color) #<show> draw the antialias part of the polygon
-            gfxdraw.filled_polygon(surf, offsetted, color) #<show> dray the filled polygon
+            # gfxdraw.aapolygon(surf, offsetted, color) #<show> draw the antialias part of the polygon
+            # <show> dray the filled polygon
+            gfxdraw.filled_polygon(surf, offsetted, color)
+            polygonSize = int(polygonSize)
+            # if lives is not None:
+            #     gfxdraw.pie(surf, polygonSize, polygonSize, polygonSize, 0, int(2*pi/(Overview.TOTALLIVES)*lives), (0,0,0,0))
+
     else:
         surf = pygame.Surface(polygonSize,  pygame.SRCALPHA)
         for vertices, color in arrayOfPolygonInfo:
             gfxdraw.filled_polygon(surf, vertices, color)
-    return surf #<show> return Surface
+    return surf  # <show> return Surface
 
 
-def trigVectors(angle, velocity, position, dt=1): #<show> function that calculate the x and y vectors when given angle and velocity
+# <show> function that calculate the x and y vectors when given angle and velocity
+def trigVectors(angle, velocity, position, dt=1):
     rad = radians(angle)
     return (position[0] + cos(rad)*velocity*dt, position[1] + sin(rad)*velocity*dt)
 
@@ -424,9 +502,19 @@ class LinearPoint(StaticPoint):
             self.angle, self.velocity, (self.x, self.y), dt)
 
 
-
+def isThereACollision(testObject, listOfObjectBeingCollided):
+    rect = testObject.get_rect()  # <show> get player rect
+    mask = testObject.get_mask()
+    for testObject2 in listOfObjectBeingCollided:  # <show> for all bullets
+        rect2 = testObject2.get_rect()  # <show> get bullet rect
+        if rect.colliderect(rect2):  # <show> if bulletRect is colliding with player rect
+            offset = (testObject.x - testObject2.x,
+                      testObject.y - testObject2.y)
+            if testObject2.get_mask().overlap(mask, offset):
+                return True 
+    return False
 
 # (difference in time)/duration = percent so
 
 
-#let's say in bullets. give a colour arg into it. it has a parent which is sprite which then has a parent which is everything. 
+# let's say in bullets. give a colour arg into it. it has a parent which is sprite which then has a parent which is everything.
